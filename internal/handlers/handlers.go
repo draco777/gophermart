@@ -38,6 +38,7 @@ func (h *Handlers) Register(w http.ResponseWriter, r *http.Request) {
 	user, token, err := h.service.RegisterUser(req.Login, req.Password)
 	if err != nil {
 		if err.Error() == "user already exists" {
+			w.WriteHeader(http.StatusConflict)
 			http.Error(w, "User already exists", http.StatusConflict)
 			return
 		}
@@ -47,6 +48,7 @@ func (h *Handlers) Register(w http.ResponseWriter, r *http.Request) {
 
 	// Устанавливаем токен в заголовок
 	w.Header().Set("Authorization", "Bearer "+token)
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"id":    user.ID,
@@ -79,6 +81,7 @@ func (h *Handlers) Login(w http.ResponseWriter, r *http.Request) {
 
 	// Устанавливаем токен в заголовок
 	w.Header().Set("Authorization", "Bearer "+token)
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"id":    user.ID,

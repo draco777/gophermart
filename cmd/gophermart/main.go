@@ -25,9 +25,9 @@ func main() {
 	}
 
 	// Запускаем миграции
-	// if err := storage.RunMigrations(cfg.DatabaseURI); err != nil {
-	//	log.Fatalf("Failed to run migrations: %v", err)
-	//}
+	if err := storage.RunMigrations(cfg.DatabaseURI); err != nil {
+		log.Fatalf("Failed to run migrations: %v", err)
+	}
 
 	// Подключаемся к базе данных
 	st, err := storage.New(cfg.DatabaseURI)
@@ -80,12 +80,9 @@ func main() {
 		ticker := time.NewTicker(5 * time.Second)
 		defer ticker.Stop()
 
-		for {
-			select {
-			case <-ticker.C:
-				if err := svc.ProcessAccruals(); err != nil {
-					log.Printf("Failed to process accruals: %v", err)
-				}
+		for range ticker.C {
+			if err := svc.ProcessAccruals(); err != nil {
+				log.Printf("Failed to process accruals: %v", err)
 			}
 		}
 	}()
