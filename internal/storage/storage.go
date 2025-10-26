@@ -44,6 +44,7 @@ func RunMigrations(databaseURI string) error {
 		return fmt.Errorf("failed to set dialect: %w", err)
 	}
 
+	// Используем путь к миграциям
 	if err := goose.Up(db, "migrations"); err != nil {
 		return fmt.Errorf("failed to run migrations: %w", err)
 	}

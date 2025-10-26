@@ -110,5 +110,9 @@ func (s *BalanceStorage) GetWithdrawals(userID int) ([]models.WithdrawalResponse
 		withdrawals = append(withdrawals, withdrawal)
 	}
 
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to iterate withdrawals: %w", err)
+	}
+
 	return withdrawals, nil
 }

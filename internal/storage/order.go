@@ -57,6 +57,10 @@ func (s *OrderStorage) GetOrdersByUserID(userID int) ([]models.OrderResponse, er
 		orders = append(orders, order)
 	}
 
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to iterate orders: %w", err)
+	}
+
 	return orders, nil
 }
 
@@ -125,6 +129,10 @@ func (s *OrderStorage) GetProcessingOrders() ([]models.Order, error) {
 		}
 
 		orders = append(orders, order)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to iterate processing orders: %w", err)
 	}
 
 	return orders, nil
