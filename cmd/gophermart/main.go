@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 	"time"
 
@@ -22,11 +23,6 @@ func main() {
 	cfg, err := config.Load()
 	if err != nil {
 		log.Fatalf("Failed to load config: %v", err)
-	}
-
-	// Запускаем миграции
-	if err := storage.RunMigrations(cfg.DatabaseURI); err != nil {
-		log.Fatalf("Failed to run migrations: %v", err)
 	}
 
 	// Подключаемся к базе данных
@@ -69,20 +65,35 @@ func main() {
 	mux.Handle("/api/user/balance/withdraw", middleware.AuthMiddleware(http.HandlerFunc(h.WithdrawBalance)))
 	mux.Handle("/api/user/withdrawals", middleware.AuthMiddleware(http.HandlerFunc(h.GetWithdrawals)))
 
+	// Создаем контекст с cancel для управления горутинами
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	// Создаем сервер
 	server := &http.Server{
 		Addr:    cfg.RunAddress,
 		Handler: mux,
 	}
 
+	// WaitGroup для ожидания завершения горутины обработки начислений
+	var wg sync.WaitGroup
+	wg.Add(1)
+
 	// Запускаем горутину для обработки начислений
 	go func() {
+		defer wg.Done()
 		ticker := time.NewTicker(5 * time.Second)
 		defer ticker.Stop()
 
-		for range ticker.C {
-			if err := svc.ProcessAccruals(); err != nil {
-				log.Printf("Failed to process accruals: %v", err)
+		for {
+			select {
+			case <-ctx.Done():
+				log.Println("Accrual processing goroutine stopping...")
+				return
+			case <-ticker.C:
+				if err := svc.ProcessAccruals(); err != nil {
+					log.Printf("Failed to process accruals: %v", err)
+				}
 			}
 		}
 	}()
@@ -102,11 +113,17 @@ func main() {
 
 	log.Println("Server shutting down...")
 
-	// Graceful shutdown
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
+	// Останавливаем горутину обработки начислений
+	cancel()
+	log.Println("Waiting for accrual processing goroutine to stop...")
+	wg.Wait()
+	log.Println("Accrual processing goroutine stopped")
 
-	if err := server.Shutdown(ctx); err != nil {
+	// Graceful shutdown сервера
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer shutdownCancel()
+
+	if err := server.Shutdown(shutdownCtx); err != nil {
 		log.Fatalf("Server forced to shutdown: %v", err)
 	}
 
