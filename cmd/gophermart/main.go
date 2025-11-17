@@ -25,6 +25,15 @@ func main() {
 		log.Fatalf("Failed to load config: %v", err)
 	}
 
+	// Запускаем миграции при необходимости
+	if cfg.RunMigrations {
+		log.Println("Running database migrations...")
+		if err := storage.RunMigrations(cfg.DatabaseURI); err != nil {
+			log.Fatalf("Failed to run migrations: %v", err)
+		}
+		log.Println("Migrations completed successfully")
+	}
+
 	// Подключаемся к базе данных
 	st, err := storage.New(cfg.DatabaseURI)
 	if err != nil {
